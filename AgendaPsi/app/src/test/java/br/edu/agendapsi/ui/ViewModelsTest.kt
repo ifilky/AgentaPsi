@@ -1,11 +1,15 @@
 package br.edu.agendapsi.ui
 
 import androidx.lifecycle.SavedStateHandle
-import br.edu.agendapsi.data.local.*
+import br.edu.agendapsi.data.local.ProfissionalEntity
 import br.edu.agendapsi.data.model.*
+import br.edu.agendapsi.data.remote.RespostaTarefas
+import br.edu.agendapsi.data.remote.TarefasApi
+import br.edu.agendapsi.data.remote.TarefaDemo
 import br.edu.agendapsi.data.repository.ClinicaRepository
 import br.edu.agendapsi.ui.agenda.*
 import br.edu.agendapsi.ui.inicio.*
+import java.io.IOException
 import java.time.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
@@ -21,6 +25,9 @@ class ViewModelsTest {
     private val clock = RelogioTeste()
     private val repository = RepositorioTeste()
     private val dia = LocalDate.of(2026, 10, 9)
+    private val tarefasApi = object : TarefasApi {
+        override suspend fun consultarTarefas() = RespostaTarefas(emptyList())
+    }
 
     @Before fun preparar() { Dispatchers.setMain(dispatcher) }
     @After fun finalizar() { Dispatchers.resetMain() }
@@ -58,7 +65,7 @@ class ViewModelsTest {
     }
 
     @Test fun inicioAtualizaProximosComRelogioETrocaDiaSemInventarRegistros() = runTest(dispatcher) {
-        val vm = InicioViewModel(repository, clock, SavedStateHandle())
+        val vm = InicioViewModel(repository, clock, SavedStateHandle(), tarefasApi)
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.state.collect() }
         runCurrent()
         assertEquals(1, (vm.state.value.conteudo as InicioState.Disponivel).resumo.proximos.size)
@@ -75,6 +82,42 @@ class ViewModelsTest {
         assertEquals(0, (vm.state.value.conteudo as InicioState.Disponivel).resumo.total)
     }
 
+    @Test fun inicioMantemResumoDuranteFalhaDaApiEPermiteRepetirConsulta() = runTest(dispatcher) {
+        val tarefas = listOf(
+            TarefaDemo("Tarefa 1", true),
+            TarefaDemo("Tarefa 2", false),
+            TarefaDemo("Tarefa 3", false)
+        )
+        var chamadas = 0
+        val api = object : TarefasApi {
+            override suspend fun consultarTarefas(): RespostaTarefas {
+                assertEquals(3, limite)
+                return when (++chamadas) {
+                    1 -> throw IOException("Sem conexão")
+                    2 -> RespostaTarefas(tarefas)
+                    else -> RespostaTarefas(emptyList())
+                }
+            }
+        }
+        val vm = InicioViewModel(repository, clock, SavedStateHandle(), api)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.state.collect() }
+
+        assertEquals(TarefasDemoState.Carregando, vm.tarefas.value)
+        vm.carregarTarefas()
+        runCurrent()
+        assertEquals(1, chamadas)
+        assertEquals(TarefasDemoState.Erro, vm.tarefas.value)
+        assertTrue(vm.state.value.conteudo is InicioState.Disponivel)
+
+        vm.carregarTarefas()
+        runCurrent()
+        assertEquals(TarefasDemoState.Disponivel(tarefas), vm.tarefas.value)
+
+        vm.carregarTarefas()
+        runCurrent()
+        assertEquals(TarefasDemoState.Disponivel(emptyList()), vm.tarefas.value)
+    }
+
     private class RelogioTeste : Clock() {
         var horario: LocalDateTime = LocalDateTime.of(2026, 10, 9, 7, 0)
         override fun getZone(): ZoneId = ZoneId.of("America/Sao_Paulo")
@@ -84,21 +127,12 @@ class ViewModelsTest {
 
     private class RepositorioTeste : ClinicaRepository {
         var falhar = false
-        val registros = MutableStateFlow(listOf(AgendamentoResumo(1, 1, "Paciente", null, 1, "Ana Costa",
+        val registros = MutableStateFlow(listOf(AgendamentoResumo(1, 1, "Paciente", 1, "Ana Costa",
             LocalDate.of(2026, 10, 9).toEpochDay(), 480, 50, Modalidade.PRESENCIAL, StatusAgendamento.AGENDADO)))
         override fun observarAgenda(dia: Long, profissionalId: Long?): Flow<List<AgendamentoResumo>> = flow {
             if (falhar) error("Falha de leitura")
             emitAll(registros.map { lista -> lista.filter { it.diaEpoch == dia && (profissionalId == null || it.profissionalId == profissionalId) } })
         }
         override fun observarProfissionais() = flowOf(listOf(ProfissionalEntity(1, "Ana Costa"), ProfissionalEntity(2, "Bruno Lima")))
-        override suspend fun inicializar() = Unit
-        override fun observarPacientes(): Flow<List<PacienteEntity>> = error("Não usado neste teste")
-        override fun observarAgendamento(id: Long): Flow<AgendamentoResumo?> = error("Não usado neste teste")
-        override suspend fun obterPaciente(id: Long): PacienteEntity? = error("Não usado neste teste")
-        override suspend fun obterAgendamento(id: Long): AgendamentoEntity? = error("Não usado neste teste")
-        override suspend fun salvarAgendamento(r: AgendamentoRascunho): ResultadoOperacao = error("Não usado neste teste")
-        override suspend fun salvarPaciente(id: Long?, nome: String, telefone: String?): ResultadoOperacao = error("Não usado neste teste")
-        override suspend fun alterarStatus(id: Long, novo: StatusAgendamento): ResultadoOperacao = error("Não usado neste teste")
-        override suspend fun definirPacienteAtivo(id: Long, ativo: Boolean): ResultadoOperacao = error("Não usado neste teste")
     }
 }

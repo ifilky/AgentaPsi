@@ -33,6 +33,8 @@ fun InicioScreen(
     onNovoAgendamento: () -> Unit,
     onAtendimento: (Long) -> Unit,
     onTentarNovamente: () -> Unit,
+    tarefas: TarefasDemoState,
+    onRecarregarTarefas: () -> Unit,
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
     onAgendaDoDia: () -> Unit = onAgenda
 ) {
@@ -123,6 +125,51 @@ fun InicioScreen(
                     }
                 }
             }
+            item { SecaoTarefasDemo(tarefas, onRecarregarTarefas) }
+        }
+    }
+}
+
+@Composable
+private fun SecaoTarefasDemo(state: TarefasDemoState, onRecarregar: () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(
+            "Tarefas de demonstração",
+            style = MaterialTheme.typography.titleLarge,
+            modifier = Modifier.semantics { heading() }
+        )
+        when (state) {
+            TarefasDemoState.Carregando -> {
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                Text("Carregando tarefas…")
+            }
+            TarefasDemoState.Erro -> {
+                Text("Não foi possível carregar as tarefas.")
+                OutlinedButton(onClick = onRecarregar, shape = MaterialTheme.shapes.small) {
+                    Text("Tentar novamente")
+                }
+            }
+            is TarefasDemoState.Disponivel -> {
+                if (state.tarefas.isEmpty()) {
+                    Text("Nenhuma tarefa recebida.")
+                }
+                state.tarefas.forEach { tarefa ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.medium,
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                    ) {
+                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(tarefa.todo, style = MaterialTheme.typography.bodyLarge)
+                            Text(
+                                if (tarefa.completed) "Concluída" else "Pendente",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -183,6 +230,8 @@ private fun PreviewContent(vazio: Boolean = false, estado: InicioState? = null) 
     AgendaPsiTheme {
         InicioScreen(agora.toLocalDate(), profissionaisDemo, null,
             estado ?: InicioState.Disponivel(resumirDia(if (vazio) emptyList() else atendimentosDemo(agora.toLocalDate()), agora, null)),
-            {}, {}, {}, {}, {}, {})
+            {}, {}, {}, {}, {}, {},
+            tarefas = TarefasDemoState.Disponivel(emptyList()),
+            onRecarregarTarefas = {})
     }
 }

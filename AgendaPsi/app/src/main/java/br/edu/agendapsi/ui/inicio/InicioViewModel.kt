@@ -6,6 +6,7 @@ import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import br.edu.agendapsi.data.remote.TarefasApi
 import br.edu.agendapsi.data.repository.ClinicaRepository
 import br.edu.agendapsi.ui.components.paraApresentacao
 import java.time.Clock
@@ -13,7 +14,9 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
 
 data class InicioUiState(
     val dia: LocalDate,
@@ -26,11 +29,15 @@ data class InicioUiState(
 class InicioViewModel(
     private val repository: ClinicaRepository,
     private val clock: Clock,
-    private val savedState: SavedStateHandle
+    private val savedState: SavedStateHandle,
+    private val tarefasApi: TarefasApi
 ) : ViewModel() {
     private val agora = MutableStateFlow(LocalDateTime.now(clock))
     private val profissional = savedState.getStateFlow<Long?>("profissionalId", null)
     private val tentativa = MutableStateFlow(0)
+    private val _tarefas = MutableStateFlow<TarefasDemoState>(TarefasDemoState.Carregando)
+    val tarefas = _tarefas.asStateFlow()
+    private var consultaTarefas: Job? = null
 
     val state: StateFlow<InicioUiState> = combine(
         agora.map { it.toLocalDate() }.distinctUntilChanged(), profissional, tentativa
@@ -46,13 +53,31 @@ class InicioViewModel(
             }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), InicioUiState(agora.value.toLocalDate()))
 
+    init {
+        carregarTarefas()
+    }
+
+    fun carregarTarefas() {
+        if (consultaTarefas?.isActive == true) return
+        consultaTarefas = viewModelScope.launch {
+            _tarefas.value = TarefasDemoState.Carregando
+            _tarefas.value = try {
+                TarefasDemoState.Disponivel(tarefasApi.consultarTarefas().todos)
+            } catch (erro: CancellationException) {
+                throw erro
+            } catch (_: Exception) {
+                TarefasDemoState.Erro
+            }
+        }
+    }
+
     fun selecionarProfissional(id: Long?) { savedState["profissionalId"] = id }
     fun atualizarRelogio() { agora.value = LocalDateTime.now(clock) }
     fun tentarNovamente() { atualizarRelogio(); tentativa.value++ }
 
     companion object {
-        fun factory(repository: ClinicaRepository, clock: Clock) = viewModelFactory {
-            initializer { InicioViewModel(repository, clock, createSavedStateHandle()) }
+        fun factory(repository: ClinicaRepository, clock: Clock, tarefasApi: TarefasApi) = viewModelFactory {
+            initializer { InicioViewModel(repository, clock, createSavedStateHandle(), tarefasApi) }
         }
     }
 }

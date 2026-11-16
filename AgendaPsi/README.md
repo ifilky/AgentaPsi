@@ -18,7 +18,7 @@ A configuração atual do daemon Gradle usa JDK 25, conforme `gradle/gradle-daem
 - Novo agendamento encaminha a data e o profissional selecionados. Os destinos ainda não implementados exibem um aviso temporário.
 - Quatro previews por tela: conteúdo, vazio, erro e carregamento, todos com as mesmas dimensões.
 
-Os dados são salvos localmente com Room e observados pelos ViewModels de Início e Agenda. A primeira abertura grava dois profissionais, quatro pacientes fictícios e atendimentos de exemplo uma única vez. Datas sem registros mostram a agenda vazia. O repositório compartilhado valida cadastros, conflitos de horário, remarcação, mudanças de situação e arquivamento. Os quatro destinos dos colegas ainda aguardam suas telas.
+Os dados são salvos localmente com Room e observados pelos ViewModels de Início e Agenda. A primeira abertura grava dois profissionais, quatro pacientes fictícios e atendimentos de exemplo uma única vez. Datas sem registros mostram a agenda vazia. O repositório fornece as consultas da agenda e a lista de profissionais para os filtros. Os quatro destinos dos colegas ainda aguardam suas telas.
 
 ## Verificação
 
@@ -26,4 +26,4 @@ Os dados são salvos localmente com Room e observados pelos ViewModels de Iníci
 .\gradlew.bat :app:assembleDebug :app:testDebugUnitTest
 ```
 
-Com um aparelho ou emulador conectado, execute também `:app:connectedDebugAndroidTest` para verificar o Room, as operações do repositório e a persistência. Os testes usam bancos próprios, separados do banco do aplicativo.
+Com um aparelho ou emulador conectado, execute também `:app:connectedDebugAndroidTest` para verificar as consultas, os filtros e a persistência no Room. Os testes usam bancos próprios, separados do banco do aplicativo.

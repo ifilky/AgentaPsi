@@ -5,7 +5,6 @@ data class AgendamentoResumo(
     val id: Long,
     val pacienteId: Long,
     val pacienteNome: String,
-    val pacienteTelefone: String?,
     val profissionalId: Long,
     val profissionalNome: String,
     val diaEpoch: Long,

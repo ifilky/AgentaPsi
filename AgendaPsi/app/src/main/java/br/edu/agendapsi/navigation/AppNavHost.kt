@@ -17,6 +17,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
+import br.edu.agendapsi.data.remote.TarefasApi
 import br.edu.agendapsi.data.repository.ClinicaRepository
 import br.edu.agendapsi.ui.agenda.*
 import br.edu.agendapsi.ui.components.*
@@ -27,9 +28,11 @@ import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.delay
 
 @Composable
-fun AppNavHost(repository: ClinicaRepository, clock: Clock) {
+fun AppNavHost(repository: ClinicaRepository, clock: Clock, tarefasApi: TarefasApi) {
     val nav = rememberNavController()
-    val inicioVm: InicioViewModel = viewModel(factory = remember(repository, clock) { InicioViewModel.factory(repository, clock) })
+    val inicioVm: InicioViewModel = viewModel(factory = remember(repository, clock, tarefasApi) {
+        InicioViewModel.factory(repository, clock, tarefasApi)
+    })
     val agendaVm: AgendaViewModel = viewModel(factory = remember(repository, clock) { AgendaViewModel.factory(repository, clock) })
     val inicio by inicioVm.state.collectAsStateWithLifecycle()
     val agenda by agendaVm.state.collectAsStateWithLifecycle()
@@ -59,10 +62,13 @@ fun AppNavHost(repository: ClinicaRepository, clock: Clock) {
 
     NavHost(navController = nav, startDestination = Inicio) {
         composable<Inicio> {
+            val tarefas by inicioVm.tarefas.collectAsStateWithLifecycle()
             InicioScreen(
                 dia = inicio.dia, profissionais = inicio.profissionais,
                 profissionalSelecionado = inicio.profissionalId,
                 state = inicio.conteudo,
+                tarefas = tarefas,
+                onRecarregarTarefas = inicioVm::carregarTarefas,
                 onProfissional = onProfissional, onAgenda = onAgenda, onPacientes = onPacientes,
                 onNovoAgendamento = {
                     nav.navigate(AgendamentoForm(diaInicial = inicio.dia.toEpochDay(), profissionalInicial = inicio.profissionalId))

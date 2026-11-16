@@ -1,6 +1,7 @@
 package br.edu.agendapsi.ui.inicio
 
 import br.edu.agendapsi.data.model.StatusAgendamento
+import br.edu.agendapsi.data.remote.TarefaDemo
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -45,6 +46,12 @@ sealed interface InicioState {
     data object Carregando : InicioState
     data object Erro : InicioState
     data class Disponivel(val resumo: ResumoDia) : InicioState
+}
+
+sealed interface TarefasDemoState {
+    data object Carregando : TarefasDemoState
+    data object Erro : TarefasDemoState
+    data class Disponivel(val tarefas: List<TarefaDemo>) : TarefasDemoState
 }
 
 val profissionaisDemo = listOf(Profissional(1, "Ana Costa"), Profissional(2, "Bruno Lima"))

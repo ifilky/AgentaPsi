@@ -12,6 +12,6 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         val container = (application as AgendaPsiApplication).container
-        setContent { AgendaPsiTheme { AppNavHost(container.repository, container.clock) } }
+        setContent { AgendaPsiTheme { AppNavHost(container.repository, container.clock, container.tarefasApi) } }
     }
 }
